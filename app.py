@@ -188,7 +188,7 @@ st.markdown("""
 # Mode selector
 mode = st.radio(
     "Choose a mode",
-    ["Predict by Specs", "Search by CPU Name"],
+    ["Predict by Specs", "Search by CPU Name", "Best Value Finder"],
     horizontal=True
 )
 
@@ -312,7 +312,87 @@ if mode == "Predict by Specs":
                 """, unsafe_allow_html=True)
 
             st.markdown('</div>', unsafe_allow_html=True)
+# ── MODE 3 — BEST VALUE FINDER ──────────────────────────────────────────
+elif mode == "Best Value Finder":
 
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Find Best Value CPUs</div>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        category_filter = st.selectbox("Category", ["Any", "Desktop", "Laptop", "Server", "Other"])
+    with col2:
+        min_budget = st.number_input("Min Budget (USD)", min_value=0, max_value=10000, value=100)
+    with col3:
+        max_budget = st.number_input("Max Budget (USD)", min_value=0, max_value=10000, value=500)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.button("Find Best Value CPUs"):
+
+        if min_budget >= max_budget:
+            st.warning("Max budget must be greater than min budget.")
+        else:
+            # Filter by price range
+            filtered = df[
+                (df['price'] >= min_budget) &
+                (df['price'] <= max_budget) &
+                (df['price'] > 0)
+            ].copy()
+
+            # Filter by category
+            if category_filter != "Any":
+                filtered = filtered[filtered['category'] == category_filter]
+
+            if filtered.empty:
+                st.markdown('<p style="color:#555;">No CPUs found in this range. Try adjusting your filters.</p>', unsafe_allow_html=True)
+            else:
+                # Calculate value score and get top 5
+                filtered['value_score'] = (filtered['cpuMark'] / filtered['price']).round(2)
+                top5 = filtered.nlargest(5, 'value_score').reset_index(drop=True)
+
+                st.markdown('<div class="section-label">Top 5 Best Value CPUs</div>', unsafe_allow_html=True)
+
+                for _, row in top5.iterrows():
+                    cpu_score = int(row['cpuMark'])
+                    tier, tier_bg = get_tier(cpu_score)
+                    pct = get_progress_pct(cpu_score)
+
+                    with st.expander(f"{row['cpuName']}  —  {cpu_score:,} cpuMark  ·  ${row['price']:.0f}"):
+                        
+                        # Progress bar
+                        st.markdown(f"""
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width:{pct}%;"></div>
+                            </div>
+                            <div class="bar-caption" style="margin-bottom:1rem;">
+                                Scores higher than ~{pct}% of CPUs in the dataset
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        # Specs
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("cpuMark", f"{cpu_score:,}")
+                            st.metric("Cores", int(row['cores']))
+                        with col2:
+                            st.metric("Single Thread Mark", int(row['threadMark']))
+                            st.metric("TDP", f"{row['TDP']:.0f}W")
+                        with col3:
+                            st.metric("Price", f"${row['price']:.0f}")
+                            st.metric("Release Year", int(row['testDate']))
+
+                        # Tier and value score
+                        st.markdown(f"""
+                            <div style="margin-top:0.75rem;">
+                                <span class="tier-badge" style="background:{tier_bg}; color:#fff;">
+                                    {tier}
+                                </span>
+                                <span style="color:#555; font-size:0.85rem; margin-left:1rem;">
+                                    Value Score: {row['value_score']}
+                                </span>
+                            </div>
+                        """, unsafe_allow_html=True)
 # ── MODE 2 — SEARCH BY CPU NAME ─────────────────────────────────────────
 elif mode == "Search by CPU Name":
 
