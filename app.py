@@ -338,7 +338,7 @@ if 'mode' not in st.session_state:
     st.session_state.mode = 'Home'
 
 # Navbar
-col_title, col_nav1, col_nav2, col_nav3, col_nav4 = st.columns([4, 1, 1, 1, 1])
+col_title, col_nav1, col_nav2, col_nav3, col_nav4, col_nav5 = st.columns([3, 1, 1, 1, 1, 1])
 
 with col_title:
     st.markdown('<div class="navbar-title">CPU Benchmark Predictor</div>', unsafe_allow_html=True)
@@ -358,7 +358,10 @@ with col_nav3:
 with col_nav4:
     if st.button("Best Value"):
         st.session_state.mode = 'Best Value'
-
+with col_nav5:
+    if st.button("About"):
+        st.session_state.mode = 'About'
+        
 st.markdown("<hr style='border-color:#2a2a2a; margin-bottom:2rem;'>", unsafe_allow_html=True)
 
 mode = st.session_state.mode
@@ -598,3 +601,104 @@ elif mode == 'Best Value':
                 st.markdown('<div class="section-label">Top 5 Best Value CPUs</div>', unsafe_allow_html=True)
                 for _, row in top5.iterrows():
                     show_cpu_expander(row)
+# ── ABOUT ─────────────────────────────────────────────────────────────
+elif mode == 'About':
+
+    st.markdown('<div class="section-label">About This Project</div>', unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class="card">
+            <div class="section-label">Overview</div>
+            <p style="color:#aaa; line-height:1.8;">
+                CPU Benchmark Predictor is a data science project that uses machine learning
+                to estimate a CPU's PassMark multi-thread benchmark score from its hardware
+                specifications. It was built to demonstrate an end-to-end data science workflow
+                — from raw data exploration to a deployed interactive web application.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class="card">
+            <div class="section-label">Dataset</div>
+            <p style="color:#aaa; line-height:1.8;">
+                The dataset contains 3,659 CPUs sourced from PassMark Performance Test via Kaggle.
+                Each entry includes hardware specifications such as core count, TDP, and price,
+                alongside benchmark scores recorded at the time of submission.
+            </p>
+            <p style="color:#aaa; line-height:1.8;">
+                Note: Prices in this dataset reflect market prices at the time of data collection
+                and may not reflect current retail prices. CPU prices tend to decrease over time
+                as newer generations release.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class="card">
+            <div class="section-label">Methodology</div>
+            <p style="color:#aaa; line-height:1.8;">
+                The project follows a structured data science workflow across three notebooks:
+            </p>
+            <p style="color:#aaa; line-height:1.8;">
+                <strong style="color:#f0f0f0;">Notebook 1 — Exploration</strong><br>
+                Loaded and inspected both datasets, identified missing values, data type issues,
+                and the heavily right-skewed distribution of the target variable cpuMark.
+            </p>
+            <p style="color:#aaa; line-height:1.8;">
+                <strong style="color:#f0f0f0;">Notebook 2 — Cleaning</strong><br>
+                Fixed data types, handled missing values using median imputation grouped by
+                category, simplified multi-label category values, and standardized over 200
+                inconsistent socket type names down to 70 clean values.
+            </p>
+            <p style="color:#aaa; line-height:1.8;">
+                <strong style="color:#f0f0f0;">Notebook 3 — Modeling</strong><br>
+                Engineered three new features — price per core, TDP per core, and thread to
+                core ratio. Applied a log transformation to cpuMark to handle skew. Trained
+                and compared Linear Regression, Random Forest, and XGBoost. Used SHAP values
+                to explain feature importance.
+            </p>
+            <p style="color:#aaa; line-height:1.8;">
+                <strong style="color:#f0f0f0;">Notebook 4 — Value Analysis</strong><br>
+                Analyzed performance per dollar across the dataset to identify which CPUs
+                offer the best value within different price ranges and categories.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div class="card">
+            <div class="section-label">Model Performance</div>
+            <div class="stat-row" style="margin-bottom:0;">
+                <div class="stat-box">
+                    <div class="stat-number">0.9833</div>
+                    <div class="stat-label">R² Score</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">2,331</div>
+                    <div class="stat-label">RMSE (benchmark pts)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">XGBoost</div>
+                    <div class="stat-label">Final Model</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{len(df):,}</div>
+                    <div class="stat-label">CPUs in Dataset</div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class="card">
+            <div class="section-label">Links</div>
+            <p style="color:#aaa; line-height:1.8;">
+                View the full project including all notebooks and source code on GitHub.<br>
+                <a href="https://github.com/bquan1406-droid/cpu-benchmark-predictor"
+                style="color:#0072ff; text-decoration:none;">
+                github.com/bquan1406-droid/cpu-benchmark-predictor
+                </a>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
