@@ -399,7 +399,7 @@ if mode == 'Home':
     """, unsafe_allow_html=True)
 
     # Highlights
-    st.markdown('<div class="section-label" style="text-align:center; margin-bottom:1.5rem;">Did You Know?</div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center; font-size:1.4rem; font-weight:700; color:#f0f0f0; margin-bottom:1.5rem; letter-spacing:0.05em;">Did You Know?</div>', unsafe_allow_html=True)
 
     h1, h2, h3 = st.columns(3)
 
