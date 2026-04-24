@@ -320,84 +320,63 @@ def show_cpu_expander(row, label=None, show_chart=False):
             avg_score = int(cat_df['cpuMark'].mean())
             max_score = int(cat_df['cpuMark'].max())
 
-            # Gauge chart
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
-                value=cpu_score,
-                delta={
-                    'reference': avg_score,
-                    'increasing': {'color': '#00c6ff'},
-                    'decreasing': {'color': '#ff4444'},
-                    'valueformat': ',',
-                    'suffix': ' vs avg'
-                },
-                number={
-                    'font': {'size': 28, 'color': '#f0f0f0'},
-                    'valueformat': ','
-                },
-                gauge={
-                    'axis': {
-                        'range': [0, max_score],
-                        'tickcolor': '#555',
-                        'tickfont': {'color': '#555', 'size': 10},
-                        'nticks': 5
-                    },
-                    'bar': {'color': '#0072ff', 'thickness': 0.25},
-                    'bgcolor': '#1a1a1a',
-                    'borderwidth': 0,
-                    'steps': [
-                        {'range': [0, avg_score * 0.5], 'color': '#1f1f1f'},
-                        {'range': [avg_score * 0.5, avg_score], 'color': '#252525'},
-                        {'range': [avg_score, max_score * 0.75], 'color': '#2a2a2a'},
-                        {'range': [max_score * 0.75, max_score], 'color': '#303030'},
-                    ],
-                    'threshold': {
-                        'line': {'color': '#00c6ff', 'width': 2},
-                        'thickness': 0.75,
-                        'value': avg_score
-                    }
-                },
-                title={
-                    'text': f"Performance vs {cat} Category",
-                    'font': {'size': 13, 'color': '#555'}
-                }
+            labels = [row['cpuName'].split('@')[0].strip(), f'{cat} Average', f'{cat} Best']
+            values = [cpu_score, avg_score, max_score]
+            bar_colors = ['#0072ff', '#444444', '#00c6ff']
+
+            fig = go.Figure(go.Bar(
+                x=values,
+                y=labels,
+                orientation='h',
+                marker=dict(
+                    color=bar_colors,
+                    line=dict(width=0),
+                ),
+                text=[f'{v:,}' for v in values],
+                textposition='outside',
+                textfont=dict(color='#d0d0d0', size=12),
             ))
 
             fig.update_layout(
                 paper_bgcolor='#1a1a1a',
                 plot_bgcolor='#1a1a1a',
-                height=220,
-                margin=dict(l=20, r=20, t=40, b=10),
-                font=dict(family='Inter')
+                height=180,
+                margin=dict(l=0, r=60, t=10, b=10),
+                xaxis=dict(
+                    visible=False,
+                    range=[0, max(values) * 1.25]
+                ),
+                yaxis=dict(
+                    tickfont=dict(color='#d0d0d0', size=11),
+                    gridcolor='#2a2a2a'
+                ),
+                showlegend=False
             )
 
             st.plotly_chart(fig, use_container_width=True)
 
-            # Stats below gauge
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.markdown(f"""
-                    <div style="text-align:center; background:#222; border-radius:10px; padding:0.6rem;">
-                        <div style="font-size:0.7rem; color:#555; text-transform:uppercase; letter-spacing:0.05em;">This CPU</div>
-                        <div style="font-size:1.1rem; font-weight:700; color:#0072ff;">{cpu_score:,}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with c2:
-                st.markdown(f"""
-                    <div style="text-align:center; background:#222; border-radius:10px; padding:0.6rem;">
-                        <div style="font-size:0.7rem; color:#555; text-transform:uppercase; letter-spacing:0.05em;">{cat} Average</div>
-                        <div style="font-size:1.1rem; font-weight:700; color:#d0d0d0;">{avg_score:,}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with c3:
-                st.markdown(f"""
-                    <div style="text-align:center; background:#222; border-radius:10px; padding:0.6rem;">
-                        <div style="font-size:0.7rem; color:#555; text-transform:uppercase; letter-spacing:0.05em;">{cat} Best</div>
-                        <div style="font-size:1.1rem; font-weight:700; color:#00c6ff;">{max_score:,}</div>
-                    </div>
-                """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("cpuMark", f"{cpu_score:,}")
+            st.metric("Cores", int(row['cores']))
+        with col2:
+            st.metric("Single Thread Mark", int(row['threadMark']))
+            st.metric("TDP", f"{row['TDP']:.0f}W")
+        with col3:
+            st.metric("Price", f"${row['price']:.0f}")
+            st.metric("Release Year", int(row['testDate']))
 
-            st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div style="margin-top:0.75rem;">
+                <span class="tier-badge" style="background:{tier_bg}; color:#fff;">
+                    {tier}
+                </span>
+                <span style="color:#555; font-size:0.85rem; margin-left:1rem;">
+                    Value Score: {value_score}
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+
 # Session state for mode
 if 'mode' not in st.session_state:
     st.session_state.mode = 'Home'
