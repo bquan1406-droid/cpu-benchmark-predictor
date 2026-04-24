@@ -301,7 +301,7 @@ def show_cpu_expander(row, label=None):
     value_score = round(row['cpuMark'] / row['price'], 2) if row['price'] > 0 else 'N/A'
     title = label if label else row['cpuName']
 
-    with st.expander(f"{row['cpuName']}  —  {cpu_score:,} cpuMark  ·  ${row['price']:.0f}"):
+    with st.expander(f"{row['cpuName']}"):
         st.markdown(f"""
             <div class="bar-container">
                 <div class="bar-fill" style="width:{pct}%;"></div>
