@@ -161,7 +161,7 @@ st.markdown("""
         font-weight: 600;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: #555;
+        color: #0072ff;
         margin-bottom: 1rem;
     }
 
@@ -609,7 +609,7 @@ elif mode == 'About':
     st.markdown("""
         <div class="card">
             <div class="section-label">Overview</div>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 CPU Benchmark Predictor is a data science project that uses machine learning
                 to estimate a CPU's PassMark multi-thread benchmark score from its hardware
                 specifications. It was built to demonstrate an end-to-end data science workflow
@@ -621,12 +621,12 @@ elif mode == 'About':
     st.markdown("""
         <div class="card">
             <div class="section-label">Dataset</div>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 The dataset contains 3,659 CPUs sourced from PassMark Performance Test via Kaggle.
                 Each entry includes hardware specifications such as core count, TDP, and price,
                 alongside benchmark scores recorded at the time of submission.
             </p>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 Note: Prices in this dataset reflect market prices at the time of data collection
                 and may not reflect current retail prices. CPU prices tend to decrease over time
                 as newer generations release.
@@ -637,28 +637,28 @@ elif mode == 'About':
     st.markdown("""
         <div class="card">
             <div class="section-label">Methodology</div>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 The project follows a structured data science workflow across three notebooks:
             </p>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 <strong style="color:#f0f0f0;">Notebook 1 — Exploration</strong><br>
                 Loaded and inspected both datasets, identified missing values, data type issues,
                 and the heavily right-skewed distribution of the target variable cpuMark.
             </p>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 <strong style="color:#f0f0f0;">Notebook 2 — Cleaning</strong><br>
                 Fixed data types, handled missing values using median imputation grouped by
                 category, simplified multi-label category values, and standardized over 200
                 inconsistent socket type names down to 70 clean values.
             </p>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 <strong style="color:#f0f0f0;">Notebook 3 — Modeling</strong><br>
                 Engineered three new features — price per core, TDP per core, and thread to
                 core ratio. Applied a log transformation to cpuMark to handle skew. Trained
                 and compared Linear Regression, Random Forest, and XGBoost. Used SHAP values
                 to explain feature importance.
             </p>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 <strong style="color:#f0f0f0;">Notebook 4 — Value Analysis</strong><br>
                 Analyzed performance per dollar across the dataset to identify which CPUs
                 offer the best value within different price ranges and categories.
@@ -693,7 +693,7 @@ elif mode == 'About':
     st.markdown("""
         <div class="card">
             <div class="section-label">Links</div>
-            <p style="color:#aaa; line-height:1.8;">
+            <p style="color:#d0d0d0; line-height:1.8;">
                 View the full project including all notebooks and source code on GitHub.<br>
                 <a href="https://github.com/bquan1406-droid/cpu-benchmark-predictor"
                 style="color:#0072ff; text-decoration:none;">
