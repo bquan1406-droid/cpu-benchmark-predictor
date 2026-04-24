@@ -5,3 +5,4 @@ joblib
 xgboost
 rapidfuzz
 matplotlib
+plotly
