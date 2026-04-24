@@ -313,6 +313,8 @@ def show_cpu_expander(row, label=None, show_chart=False):
         """, unsafe_allow_html=True)
 
         if show_chart:
+            import plotly.graph_objects as go
+
             cat = row['category']
             cat_df = df[df['category'] == cat]
             avg_score = int(cat_df['cpuMark'].mean())
@@ -320,34 +322,38 @@ def show_cpu_expander(row, label=None, show_chart=False):
 
             labels = [row['cpuName'].split('@')[0].strip(), f'{cat} Average', f'{cat} Best']
             values = [cpu_score, avg_score, max_score]
-            colors = ['#0072ff', '#444444', '#00c6ff']
+            bar_colors = ['#0072ff', '#444444', '#00c6ff']
 
-            fig, ax = plt.subplots(figsize=(6, 2))
-            fig.patch.set_facecolor('#1a1a1a')
-            ax.set_facecolor('#1a1a1a')
+            fig = go.Figure(go.Bar(
+                x=values,
+                y=labels,
+                orientation='h',
+                marker=dict(
+                    color=bar_colors,
+                    line=dict(width=0),
+                ),
+                text=[f'{v:,}' for v in values],
+                textposition='outside',
+                textfont=dict(color='#d0d0d0', size=12),
+            ))
 
-            bars = ax.barh(labels, values, color=colors, height=0.5)
+            fig.update_layout(
+                paper_bgcolor='#1a1a1a',
+                plot_bgcolor='#1a1a1a',
+                height=180,
+                margin=dict(l=0, r=60, t=10, b=10),
+                xaxis=dict(
+                    visible=False,
+                    range=[0, max(values) * 1.25]
+                ),
+                yaxis=dict(
+                    tickfont=dict(color='#d0d0d0', size=11),
+                    gridcolor='#2a2a2a'
+                ),
+                showlegend=False
+            )
 
-            for bar, val in zip(bars, values):
-                ax.text(
-                    bar.get_width() + max(values) * 0.01,
-                    bar.get_y() + bar.get_height() / 2,
-                    f'{val:,}',
-                    va='center',
-                    color='#d0d0d0',
-                    fontsize=9
-                )
-
-            ax.set_xlim(0, max(values) * 1.2)
-            ax.tick_params(colors='#d0d0d0')
-            ax.xaxis.set_visible(False)
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-
-            plt.yticks(color='#d0d0d0', fontsize=9)
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close()
+            st.plotly_chart(fig, use_container_width=True)
 
         col1, col2, col3 = st.columns(3)
         with col1:
