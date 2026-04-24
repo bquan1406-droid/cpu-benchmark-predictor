@@ -10,7 +10,7 @@ model = joblib.load("xgb_model.pkl")
 with open("feature_columns.json", "r") as f:
     feature_columns = json.load(f)
 
-# Load dataset for search
+# Load dataset for search and similar CPUs
 df = pd.read_csv("CPU_benchmark_cleaned.csv")
 
 # Page config
@@ -227,6 +227,7 @@ if mode == "Predict by Specs":
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("Predict Benchmark Score"):
+
         price_per_core = price / cores
         tdp_per_core = TDP / cores
         thread_to_core_ratio = threadMark / cores
@@ -255,6 +256,7 @@ if mode == "Predict by Specs":
         tier, tier_bg = get_tier(prediction)
         pct = get_progress_pct(prediction)
 
+        # Score display
         st.markdown(f"""
             <div class="score-display">
                 <div class="score-number">{prediction:,}</div>
@@ -267,6 +269,7 @@ if mode == "Predict by Specs":
             </div>
         """, unsafe_allow_html=True)
 
+        # Progress bar
         st.markdown(f"""
             <div class="card">
                 <div class="section-label">Score on PassMark Scale</div>
@@ -276,39 +279,39 @@ if mode == "Predict by Specs":
                 <div class="bar-caption">Scores higher than ~{pct}% of CPUs in the dataset</div>
             </div>
         """, unsafe_allow_html=True)
-        # Similar CPUs from the same category
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-label">Similar CPUs in the Same Category</div>', unsafe_allow_html=True)
 
+        # Similar CPUs from the same category
         same_cat = df[df['category'] == category].copy()
         same_cat['diff'] = (same_cat['cpuMark'] - prediction).abs()
         similar = same_cat.sort_values('diff').head(5)
 
-        for _, row in similar.iterrows():
-            cpu_score = int(row['cpuMark'])
-            tier, tier_bg = get_tier(cpu_score)
-            pct_similar = get_progress_pct(cpu_score)
+        if not similar.empty:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-label">Similar CPUs in the Same Category</div>', unsafe_allow_html=True)
 
-            st.markdown(f"""
-                <div class="result-row">
-                    <div class="result-cpu-name">{row['cpuName']}</div>
-                    <div class="result-meta">
-                        {int(row['cores'])} Cores &nbsp;·&nbsp;
-                        ${row['price']:.0f} &nbsp;·&nbsp;
-                        <span style="background:{tier_bg}; color:#fff;
-                        padding: 2px 10px; border-radius:999px;
-                        font-size:0.75rem; font-weight:700;">{tier}</span>
-                    </div>
-                    <div class="bar-container" style="margin-top:0.75rem;">
-                        <div class="bar-fill" style="width:{pct_similar}%;"></div>
-                    </div>
-                    <div class="result-score">{cpu_score:,}</div>
-                </div>
-            """, unsafe_allow_html=True)
+            for _, row in similar.iterrows():
+                cpu_score = int(row['cpuMark'])
+                tier_s, tier_bg_s = get_tier(cpu_score)
+                pct_similar = get_progress_pct(cpu_score)
 
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        
+                st.markdown(f"""
+                    <div class="result-row">
+                        <div class="result-cpu-name">{row['cpuName']}</div>
+                        <div class="result-meta">
+                            {int(row['cores'])} Cores &nbsp;·&nbsp;
+                            ${row['price']:.0f} &nbsp;·&nbsp;
+                            <span style="background:{tier_bg_s}; color:#fff;
+                            padding: 2px 10px; border-radius:999px;
+                            font-size:0.75rem; font-weight:700;">{tier_s}</span>
+                        </div>
+                        <div class="bar-container" style="margin-top:0.75rem;">
+                            <div class="bar-fill" style="width:{pct_similar}%;"></div>
+                        </div>
+                        <div class="result-score">{cpu_score:,}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ── MODE 2 — SEARCH BY CPU NAME ─────────────────────────────────────────
 elif mode == "Search by CPU Name":
@@ -323,7 +326,6 @@ elif mode == "Search by CPU Name":
     if query:
         cpu_names = df['cpuName'].tolist()
 
-        # Fuzzy match — return top 8 results
         matches = process.extract(
             query,
             cpu_names,
