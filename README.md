@@ -5,7 +5,7 @@ A machine learning web app that predicts CPU PassMark multi-thread benchmark
 scores from hardware specifications.
 
 ## Live Demo
-[Open App](https://bquan1406-droid-cpu-benchmark-predictor.streamlit.app)
+[Open App](https://cpu-benchmark-predictor-a8u8nlutckczmxxv24q6tw.streamlit.app/)
 
 ## Overview
 
