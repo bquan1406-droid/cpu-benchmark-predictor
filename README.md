@@ -26,6 +26,7 @@ Records: 3,825 CPUs from PassMark Performance Test
 - Notebook 1 — Data Loading and Exploration
 - Notebook 2 — Data Cleaning
 - Notebook 3 — Feature Engineering and Modeling
+- Notebook 4 - Value Analysis
 - app/ — Streamlit web application
 
 ## Methodology
