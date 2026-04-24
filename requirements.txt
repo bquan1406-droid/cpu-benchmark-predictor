@@ -4,3 +4,4 @@ numpy
 joblib
 xgboost
 rapidfuzz
+matplotlib
