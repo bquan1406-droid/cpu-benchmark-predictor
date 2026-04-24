@@ -10,6 +10,20 @@ model = joblib.load("xgb_model.pkl")
 with open("feature_columns.json", "r") as f:
     feature_columns = json.load(f)
 
+# Helper functions
+def get_performance_label(score):
+    if score < 2000:
+        return "Budget", "#6c757d"
+    elif score < 10000:
+        return "Mid-Range", "#0d6efd"
+    elif score < 30000:
+        return "High-End", "#198754"
+    else:
+        return "Workstation", "#dc3545"
+
+def get_progress_pct(score, max_score=108822):
+    return min(int((score / max_score) * 100), 100)
+
 # App title
 st.title("CPU Benchmark Score Predictor")
 st.write("Enter a CPU s hardware specifications to get an estimated PassMark multi-thread benchmark score.")
@@ -32,10 +46,8 @@ if st.button("Predict cpuMark"):
     tdp_per_core = TDP / cores
     thread_to_core_ratio = threadMark / cores
 
-    # Build input row with all zeros matching training columns
+    # Build input row
     input_dict = {col: 0 for col in feature_columns}
-
-    # Fill in known values
     input_dict["cores"] = cores
     input_dict["threadMark"] = threadMark
     input_dict["price"] = price
@@ -45,20 +57,38 @@ if st.button("Predict cpuMark"):
     input_dict["tdp_per_core"] = tdp_per_core
     input_dict["thread_to_core_ratio"] = thread_to_core_ratio
 
-    # Set the correct category column
     if category == "Server":
         input_dict["category_Server"] = 1
     elif category == "Laptop":
         input_dict["category_Laptop"] = 1
     elif category == "Other":
         input_dict["category_Other"] = 1
-    # Desktop is the base category — all zeros
 
-    # Convert to dataframe and predict
+    # Predict
     input_df = pd.DataFrame([input_dict]).astype(float)
     prediction_log = model.predict(input_df)[0]
-    prediction = np.expm1(prediction_log)
+    prediction = int(np.expm1(prediction_log))
 
-    # Display result
-    st.success(f"Estimated cpuMark Score: {int(prediction):,}")
-    st.caption("This is an estimate based on the XGBoost model trained on PassMark benchmark data.")
+    # Get label and color
+    label, color = get_performance_label(prediction)
+    pct = get_progress_pct(prediction)
+
+    # Display results
+    st.markdown("---")
+    st.subheader("Prediction Result")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label="Estimated cpuMark", value=f"{prediction:,}")
+    with col2:
+        st.markdown(f"### Performance Tier")
+        st.markdown(
+            f'<span style="background-color:{color}; color:white; padding:6px 14px; '
+            f'border-radius:8px; font-weight:bold;">{label}</span>',
+            unsafe_allow_html=True
+        )
+
+    # Progress bar
+    st.markdown("**Score on PassMark Scale (0 — 108,822)**")
+    st.progress(pct)
+    st.caption(f"This CPU scores higher than approximately {pct}% of CPUs in our dataset.")
