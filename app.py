@@ -3,11 +3,15 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
+from rapidfuzz import process, fuzz
 
 # Load model and features
 model = joblib.load("xgb_model.pkl")
 with open("feature_columns.json", "r") as f:
     feature_columns = json.load(f)
+
+# Load dataset for search
+df = pd.read_csv("CPU_benchmark_cleaned.csv")
 
 # Page config
 st.set_page_config(
@@ -142,94 +146,184 @@ st.markdown("""
         color: #aaa !important;
         font-size: 0.85rem !important;
     }
+
+    .result-row {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .result-cpu-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f0f0f0;
+        margin-bottom: 0.4rem;
+    }
+
+    .result-meta {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .result-score {
+        font-size: 1.4rem;
+        font-weight: 900;
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Hero section
+# Hero
 st.markdown("""
     <div class="hero">
         <h1>CPU Benchmark Predictor</h1>
-        <p>Enter your CPU specs and get an estimated PassMark score instantly.</p>
+        <p>Predict benchmark scores from specs or search any CPU by name.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Input section
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="section-label">CPU Specifications</div>', unsafe_allow_html=True)
+# Mode selector
+mode = st.radio(
+    "Choose a mode",
+    ["Predict by Specs", "Search by CPU Name"],
+    horizontal=True
+)
 
-col1, col2 = st.columns(2)
-with col1:
-    cores = st.number_input("Number of Cores", min_value=1, max_value=256, value=8)
-    price = st.number_input("Price (USD)", min_value=0.0, max_value=10000.0, value=300.0)
-    TDP = st.number_input("TDP (Watts)", min_value=1, max_value=400, value=65)
-with col2:
-    threadMark = st.number_input("Single Thread Mark", min_value=0, max_value=5000, value=2000)
-    testDate = st.number_input("Release Year", min_value=2000, max_value=2024, value=2022)
-    category = st.selectbox("Category", ["Desktop", "Laptop", "Server", "Other"])
+st.markdown("<br>", unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-predict = st.button("Predict Benchmark Score")
-
-# Prediction
-if predict:
-    price_per_core = price / cores
-    tdp_per_core = TDP / cores
-    thread_to_core_ratio = threadMark / cores
-
-    input_dict = {col: 0 for col in feature_columns}
-    input_dict["cores"] = cores
-    input_dict["threadMark"] = threadMark
-    input_dict["price"] = price
-    input_dict["TDP"] = TDP
-    input_dict["testDate"] = testDate
-    input_dict["price_per_core"] = price_per_core
-    input_dict["tdp_per_core"] = tdp_per_core
-    input_dict["thread_to_core_ratio"] = thread_to_core_ratio
-
-    if category == "Server":
-        input_dict["category_Server"] = 1
-    elif category == "Laptop":
-        input_dict["category_Laptop"] = 1
-    elif category == "Other":
-        input_dict["category_Other"] = 1
-
-    input_df = pd.DataFrame([input_dict]).astype(float)
-    prediction_log = model.predict(input_df)[0]
-    prediction = int(np.expm1(prediction_log))
-
-    # Tier logic
-    if prediction < 2000:
-        tier, tier_color, tier_bg = "Budget", "#fff", "#3a3a3a"
-    elif prediction < 10000:
-        tier, tier_color, tier_bg = "Mid-Range", "#fff", "#0072ff"
-    elif prediction < 30000:
-        tier, tier_color, tier_bg = "High-End", "#fff", "#00a86b"
+# Helper functions
+def get_tier(score):
+    if score < 2000:
+        return "Budget", "#3a3a3a"
+    elif score < 10000:
+        return "Mid-Range", "#0072ff"
+    elif score < 30000:
+        return "High-End", "#00a86b"
     else:
-        tier, tier_color, tier_bg = "Workstation", "#fff", "#cc0000"
+        return "Workstation", "#cc0000"
 
-    pct = min(int((prediction / 108822) * 100), 100)
+def get_progress_pct(score, max_score=108822):
+    return min(int((score / max_score) * 100), 100)
 
-    # Score display
-    st.markdown(f"""
-        <div class="score-display">
-            <div class="score-number">{prediction:,}</div>
-            <div class="score-label">ESTIMATED PASSMARK SCORE</div>
-            <div>
-                <span class="tier-badge" style="background:{tier_bg}; color:{tier_color};">
-                    {tier}
-                </span>
+# ── MODE 1 — PREDICT BY SPECS ──────────────────────────────────────────
+if mode == "Predict by Specs":
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">CPU Specifications</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        cores = st.number_input("Number of Cores", min_value=1, max_value=256, value=8)
+        price = st.number_input("Price (USD)", min_value=0.0, max_value=10000.0, value=300.0)
+        TDP = st.number_input("TDP (Watts)", min_value=1, max_value=400, value=65)
+    with col2:
+        threadMark = st.number_input("Single Thread Mark", min_value=0, max_value=5000, value=2000)
+        testDate = st.number_input("Release Year", min_value=2000, max_value=2024, value=2022)
+        category = st.selectbox("Category", ["Desktop", "Laptop", "Server", "Other"])
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.button("Predict Benchmark Score"):
+        price_per_core = price / cores
+        tdp_per_core = TDP / cores
+        thread_to_core_ratio = threadMark / cores
+
+        input_dict = {col: 0 for col in feature_columns}
+        input_dict["cores"] = cores
+        input_dict["threadMark"] = threadMark
+        input_dict["price"] = price
+        input_dict["TDP"] = TDP
+        input_dict["testDate"] = testDate
+        input_dict["price_per_core"] = price_per_core
+        input_dict["tdp_per_core"] = tdp_per_core
+        input_dict["thread_to_core_ratio"] = thread_to_core_ratio
+
+        if category == "Server":
+            input_dict["category_Server"] = 1
+        elif category == "Laptop":
+            input_dict["category_Laptop"] = 1
+        elif category == "Other":
+            input_dict["category_Other"] = 1
+
+        input_df = pd.DataFrame([input_dict]).astype(float)
+        prediction_log = model.predict(input_df)[0]
+        prediction = int(np.expm1(prediction_log))
+
+        tier, tier_bg = get_tier(prediction)
+        pct = get_progress_pct(prediction)
+
+        st.markdown(f"""
+            <div class="score-display">
+                <div class="score-number">{prediction:,}</div>
+                <div class="score-label">ESTIMATED PASSMARK SCORE</div>
+                <div>
+                    <span class="tier-badge" style="background:{tier_bg}; color:#fff;">
+                        {tier}
+                    </span>
+                </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    # Progress bar
-    st.markdown(f"""
-        <div class="card">
-            <div class="section-label">Score on PassMark Scale</div>
-            <div class="bar-container">
-                <div class="bar-fill" style="width:{pct}%;"></div>
+        st.markdown(f"""
+            <div class="card">
+                <div class="section-label">Score on PassMark Scale</div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width:{pct}%;"></div>
+                </div>
+                <div class="bar-caption">Scores higher than ~{pct}% of CPUs in the dataset</div>
             </div>
-            <div class="bar-caption">Scores higher than ~{pct}% of CPUs in the dataset</div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+# ── MODE 2 — SEARCH BY CPU NAME ─────────────────────────────────────────
+elif mode == "Search by CPU Name":
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Search CPU</div>', unsafe_allow_html=True)
+
+    query = st.text_input("Type a CPU name", placeholder="e.g. Ryzen 9 5950X")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if query:
+        cpu_names = df['cpuName'].tolist()
+
+        # Fuzzy match — return top 8 results
+        matches = process.extract(
+            query,
+            cpu_names,
+            scorer=fuzz.WRatio,
+            limit=8
+        )
+
+        if matches:
+            st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+
+            for match in matches:
+                name, score, idx = match
+                row = df[df['cpuName'] == name].iloc[0]
+                cpu_score = int(row['cpuMark'])
+                tier, tier_bg = get_tier(cpu_score)
+                pct = get_progress_pct(cpu_score)
+
+                st.markdown(f"""
+                    <div class="result-row">
+                        <div class="result-cpu-name">{name}</div>
+                        <div class="result-meta">
+                            {row['category']} &nbsp;·&nbsp;
+                            {int(row['cores'])} Cores &nbsp;·&nbsp;
+                            ${row['price']:.0f} &nbsp;·&nbsp;
+                            <span style="background:{tier_bg}; color:#fff;
+                            padding: 2px 10px; border-radius:999px;
+                            font-size:0.75rem; font-weight:700;">{tier}</span>
+                        </div>
+                        <div class="bar-container" style="margin-top:0.75rem;">
+                            <div class="bar-fill" style="width:{pct}%;"></div>
+                        </div>
+                        <div class="result-score">{cpu_score:,}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown('<p style="color:#555;">No results found. Try a different search term.</p>', unsafe_allow_html=True)
