@@ -49,7 +49,7 @@ st.markdown("""
     }
 
     .navbar-title {
-        font-size: 1.5rem;
+        font-size: 2.5rem;
         font-weight: 900;
         background: linear-gradient(90deg, #00c6ff, #0072ff);
         -webkit-background-clip: text;
