@@ -294,14 +294,15 @@ def get_tier(score):
 def get_progress_pct(score, max_score=108822):
     return min(int((score / max_score) * 100), 100)
 
-def show_cpu_expander(row, label=None):
+def show_cpu_expander(row, label=None, show_chart=False):
+    import matplotlib.pyplot as plt
     cpu_score = int(row['cpuMark'])
     tier, tier_bg = get_tier(cpu_score)
     pct = get_progress_pct(cpu_score)
     value_score = round(row['cpuMark'] / row['price'], 2) if row['price'] > 0 else 'N/A'
-    title = label if label else row['cpuName']
 
     with st.expander(f"{row['cpuName']}"):
+
         st.markdown(f"""
             <div class="bar-container">
                 <div class="bar-fill" style="width:{pct}%;"></div>
@@ -310,6 +311,43 @@ def show_cpu_expander(row, label=None):
                 Scores higher than ~{pct}% of CPUs in the dataset
             </div>
         """, unsafe_allow_html=True)
+
+        if show_chart:
+            cat = row['category']
+            cat_df = df[df['category'] == cat]
+            avg_score = int(cat_df['cpuMark'].mean())
+            max_score = int(cat_df['cpuMark'].max())
+
+            labels = [row['cpuName'].split('@')[0].strip(), f'{cat} Average', f'{cat} Best']
+            values = [cpu_score, avg_score, max_score]
+            colors = ['#0072ff', '#444444', '#00c6ff']
+
+            fig, ax = plt.subplots(figsize=(6, 2))
+            fig.patch.set_facecolor('#1a1a1a')
+            ax.set_facecolor('#1a1a1a')
+
+            bars = ax.barh(labels, values, color=colors, height=0.5)
+
+            for bar, val in zip(bars, values):
+                ax.text(
+                    bar.get_width() + max(values) * 0.01,
+                    bar.get_y() + bar.get_height() / 2,
+                    f'{val:,}',
+                    va='center',
+                    color='#d0d0d0',
+                    fontsize=9
+                )
+
+            ax.set_xlim(0, max(values) * 1.2)
+            ax.tick_params(colors='#d0d0d0')
+            ax.xaxis.set_visible(False)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+            plt.yticks(color='#d0d0d0', fontsize=9)
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -560,7 +598,7 @@ elif mode == 'Search':
             for match in matches:
                 name, score, idx = match
                 row = df[df['cpuName'] == name].iloc[0]
-                show_cpu_expander(row)
+                show_cpu_expander(row, show_chart=True)
         else:
             st.markdown('<p style="color:#555;">No results found.</p>', unsafe_allow_html=True)
 
