@@ -10,14 +10,22 @@ model = joblib.load("xgb_model.pkl")
 with open("feature_columns.json", "r") as f:
     feature_columns = json.load(f)
 
-# Load dataset for search and similar CPUs
+# Load dataset
 df = pd.read_csv("CPU_benchmark_cleaned.csv")
+
+# Precompute highlights
+strongest = df.loc[df['cpuMark'].idxmax()]
+df_value = df[df['price'] > 0].copy()
+df_value['value_score'] = df_value['cpuMark'] / df_value['price']
+best_value = df_value.loc[df_value['value_score'].idxmax()]
+df['efficiency'] = df['cpuMark'] / df['TDP']
+most_efficient = df.loc[df['efficiency'].idxmax()]
 
 # Page config
 st.set_page_config(
     page_title="CPU Benchmark Predictor",
     page_icon="🖥️",
-    layout="centered"
+    layout="wide"
 )
 
 # Custom CSS
@@ -31,24 +39,113 @@ st.markdown("""
         color: #f0f0f0;
     }
 
-    .hero {
-        text-align: center;
-        padding: 2.5rem 1rem 1.5rem 1rem;
+    .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem 0 1.5rem 0;
+        border-bottom: 1px solid #2a2a2a;
+        margin-bottom: 2rem;
     }
 
-    .hero h1 {
-        font-size: 2.8rem;
+    .navbar-title {
+        font-size: 1.5rem;
         font-weight: 900;
         background: linear-gradient(90deg, #00c6ff, #0072ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.3rem;
+    }
+
+    .hero {
+        text-align: center;
+        padding: 3rem 1rem 2rem 1rem;
+    }
+
+    .hero h1 {
+        font-size: 3rem;
+        font-weight: 900;
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
     }
 
     .hero p {
         font-size: 1rem;
         color: #888;
         margin-top: 0;
+        margin-bottom: 2rem;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-box {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        text-align: center;
+        min-width: 140px;
+    }
+
+    .stat-number {
+        font-size: 1.6rem;
+        font-weight: 900;
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #555;
+        margin-top: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .highlight-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #0072ff;
+        margin-bottom: 0.5rem;
+    }
+
+    .highlight-card {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        height: 100%;
+    }
+
+    .highlight-cpu {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f0f0f0;
+        margin-bottom: 0.3rem;
+    }
+
+    .highlight-score {
+        font-size: 1.6rem;
+        font-weight: 900;
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .highlight-metric {
+        font-size: 0.78rem;
+        color: #555;
+        margin-top: 0.2rem;
     }
 
     .card {
@@ -126,25 +223,26 @@ st.markdown("""
     }
 
     div[data-testid="stButton"] button {
-        width: 100%;
-        background: linear-gradient(90deg, #00c6ff, #0072ff);
-        color: white;
-        font-weight: 700;
-        font-size: 1rem;
-        border: none;
-        border-radius: 12px;
-        padding: 0.75rem;
+        background: transparent;
+        color: #aaa;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        padding: 0.5rem 1.2rem;
         cursor: pointer;
-        margin-top: 1rem;
+        transition: all 0.2s;
     }
 
     div[data-testid="stButton"] button:hover {
-        opacity: 0.9;
+        border-color: #0072ff;
+        color: #fff;
     }
 
-    label, .stNumberInput label, .stSelectbox label {
-        color: #aaa !important;
-        font-size: 0.85rem !important;
+    .active-btn button {
+        background: linear-gradient(90deg, #00c6ff, #0072ff) !important;
+        color: white !important;
+        border: none !important;
     }
 
     .result-row {
@@ -174,25 +272,13 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
+
+    label, .stNumberInput label, .stSelectbox label {
+        color: #aaa !important;
+        font-size: 0.85rem !important;
+    }
     </style>
 """, unsafe_allow_html=True)
-
-# Hero
-st.markdown("""
-    <div class="hero">
-        <h1>CPU Benchmark Predictor</h1>
-        <p>Predict benchmark scores from specs or search any CPU by name.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# Mode selector
-mode = st.radio(
-    "Choose a mode",
-    ["Predict by Specs", "Search by CPU Name", "Best Value Finder"],
-    horizontal=True
-)
-
-st.markdown("<br>", unsafe_allow_html=True)
 
 # Helper functions
 def get_tier(score):
@@ -208,11 +294,177 @@ def get_tier(score):
 def get_progress_pct(score, max_score=108822):
     return min(int((score / max_score) * 100), 100)
 
-# ── MODE 1 — PREDICT BY SPECS ──────────────────────────────────────────
-if mode == "Predict by Specs":
+def show_cpu_expander(row, label=None):
+    cpu_score = int(row['cpuMark'])
+    tier, tier_bg = get_tier(cpu_score)
+    pct = get_progress_pct(cpu_score)
+    value_score = round(row['cpuMark'] / row['price'], 2) if row['price'] > 0 else 'N/A'
+    title = label if label else row['cpuName']
+
+    with st.expander(f"{row['cpuName']}  —  {cpu_score:,} cpuMark  ·  ${row['price']:.0f}"):
+        st.markdown(f"""
+            <div class="bar-container">
+                <div class="bar-fill" style="width:{pct}%;"></div>
+            </div>
+            <div class="bar-caption" style="margin-bottom:1rem;">
+                Scores higher than ~{pct}% of CPUs in the dataset
+            </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("cpuMark", f"{cpu_score:,}")
+            st.metric("Cores", int(row['cores']))
+        with col2:
+            st.metric("Single Thread Mark", int(row['threadMark']))
+            st.metric("TDP", f"{row['TDP']:.0f}W")
+        with col3:
+            st.metric("Price", f"${row['price']:.0f}")
+            st.metric("Release Year", int(row['testDate']))
+
+        st.markdown(f"""
+            <div style="margin-top:0.75rem;">
+                <span class="tier-badge" style="background:{tier_bg}; color:#fff;">
+                    {tier}
+                </span>
+                <span style="color:#555; font-size:0.85rem; margin-left:1rem;">
+                    Value Score: {value_score}
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+
+# Session state for mode
+if 'mode' not in st.session_state:
+    st.session_state.mode = 'Home'
+
+# Navbar
+col_title, col_nav1, col_nav2, col_nav3, col_nav4 = st.columns([4, 1, 1, 1, 1])
+
+with col_title:
+    st.markdown('<div class="navbar-title">CPU Benchmark Predictor</div>', unsafe_allow_html=True)
+
+with col_nav1:
+    if st.button("Home"):
+        st.session_state.mode = 'Home'
+
+with col_nav2:
+    if st.button("Predict"):
+        st.session_state.mode = 'Predict'
+
+with col_nav3:
+    if st.button("Search"):
+        st.session_state.mode = 'Search'
+
+with col_nav4:
+    if st.button("Best Value"):
+        st.session_state.mode = 'Best Value'
+
+st.markdown("<hr style='border-color:#2a2a2a; margin-bottom:2rem;'>", unsafe_allow_html=True)
+
+mode = st.session_state.mode
+
+# ── HOME ──────────────────────────────────────────────────────────────
+if mode == 'Home':
+
+    st.markdown("""
+        <div class="hero">
+            <h1>CPU Benchmark Predictor</h1>
+            <p>A data-driven tool to explore, predict, and compare CPU performance<br>using real PassMark benchmark data.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Stats row
+    st.markdown(f"""
+        <div class="stat-row">
+            <div class="stat-box">
+                <div class="stat-number">{len(df):,}</div>
+                <div class="stat-label">CPUs in Database</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">0.9833</div>
+                <div class="stat-label">Model R² Score</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">3</div>
+                <div class="stat-label">Modes to Explore</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">XGBoost</div>
+                <div class="stat-label">Model Used</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Highlights
+    st.markdown('<div class="section-label" style="text-align:center; margin-bottom:1.5rem;">Did You Know?</div>', unsafe_allow_html=True)
+
+    h1, h2, h3 = st.columns(3)
+
+    with h1:
+        cpu_score = int(strongest['cpuMark'])
+        tier, tier_bg = get_tier(cpu_score)
+        st.markdown(f"""
+            <div class="highlight-card">
+                <div class="highlight-label">Strongest CPU</div>
+                <div class="highlight-cpu">{strongest['cpuName']}</div>
+                <div class="highlight-score">{cpu_score:,}</div>
+                <div class="highlight-metric">cpuMark score</div>
+                <div style="margin-top:0.75rem;">
+                    <span class="tier-badge" style="background:{tier_bg}; color:#fff; font-size:0.8rem; padding:0.3rem 1rem;">
+                        {tier}
+                    </span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with h2:
+        vs = round(best_value['value_score'], 2)
+        tier, tier_bg = get_tier(int(best_value['cpuMark']))
+        st.markdown(f"""
+            <div class="highlight-card">
+                <div class="highlight-label">Best Value CPU</div>
+                <div class="highlight-cpu">{best_value['cpuName']}</div>
+                <div class="highlight-score">{vs}</div>
+                <div class="highlight-metric">cpuMark per dollar</div>
+                <div style="margin-top:0.75rem;">
+                    <span class="tier-badge" style="background:{tier_bg}; color:#fff; font-size:0.8rem; padding:0.3rem 1rem;">
+                        {tier}
+                    </span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with h3:
+        eff = round(most_efficient['efficiency'], 2)
+        tier, tier_bg = get_tier(int(most_efficient['cpuMark']))
+        st.markdown(f"""
+            <div class="highlight-card">
+                <div class="highlight-label">Most Power Efficient</div>
+                <div class="highlight-cpu">{most_efficient['cpuName']}</div>
+                <div class="highlight-score">{eff}</div>
+                <div class="highlight-metric">cpuMark per watt</div>
+                <div style="margin-top:0.75rem;">
+                    <span class="tier-badge" style="background:{tier_bg}; color:#fff; font-size:0.8rem; padding:0.3rem 1rem;">
+                        {tier}
+                    </span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Expandable specs for each highlight
+    st.markdown('<div class="section-label">Click to explore each highlight</div>', unsafe_allow_html=True)
+    show_cpu_expander(strongest)
+    show_cpu_expander(best_value)
+    show_cpu_expander(most_efficient)
+
+# ── PREDICT BY SPECS ──────────────────────────────────────────────────
+elif mode == 'Predict':
+
+    st.markdown('<div class="section-label">Predict Benchmark Score from Specs</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">CPU Specifications</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -227,7 +479,6 @@ if mode == "Predict by Specs":
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("Predict Benchmark Score"):
-
         price_per_core = price / cores
         tdp_per_core = TDP / cores
         thread_to_core_ratio = threadMark / cores
@@ -256,7 +507,6 @@ if mode == "Predict by Specs":
         tier, tier_bg = get_tier(prediction)
         pct = get_progress_pct(prediction)
 
-        # Score display
         st.markdown(f"""
             <div class="score-display">
                 <div class="score-number">{prediction:,}</div>
@@ -269,7 +519,6 @@ if mode == "Predict by Specs":
             </div>
         """, unsafe_allow_html=True)
 
-        # Progress bar
         st.markdown(f"""
             <div class="card">
                 <div class="section-label">Score on PassMark Scale</div>
@@ -280,44 +529,44 @@ if mode == "Predict by Specs":
             </div>
         """, unsafe_allow_html=True)
 
-        # Similar CPUs from the same category
+        # Similar CPUs
         same_cat = df[df['category'] == category].copy()
         same_cat['diff'] = (same_cat['cpuMark'] - prediction).abs()
         similar = same_cat.sort_values('diff').head(5)
 
         if not similar.empty:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
             st.markdown('<div class="section-label">Similar CPUs in the Same Category</div>', unsafe_allow_html=True)
-
             for _, row in similar.iterrows():
-                cpu_score = int(row['cpuMark'])
-                tier_s, tier_bg_s = get_tier(cpu_score)
-                pct_similar = get_progress_pct(cpu_score)
+                show_cpu_expander(row)
 
-                st.markdown(f"""
-                    <div class="result-row">
-                        <div class="result-cpu-name">{row['cpuName']}</div>
-                        <div class="result-meta">
-                            {int(row['cores'])} Cores &nbsp;·&nbsp;
-                            ${row['price']:.0f} &nbsp;·&nbsp;
-                            <span style="background:{tier_bg_s}; color:#fff;
-                            padding: 2px 10px; border-radius:999px;
-                            font-size:0.75rem; font-weight:700;">{tier_s}</span>
-                        </div>
-                        <div class="bar-container" style="margin-top:0.75rem;">
-                            <div class="bar-fill" style="width:{pct_similar}%;"></div>
-                        </div>
-                        <div class="result-score">{cpu_score:,}</div>
-                    </div>
-                """, unsafe_allow_html=True)
+# ── SEARCH BY CPU NAME ────────────────────────────────────────────────
+elif mode == 'Search':
 
-            st.markdown('</div>', unsafe_allow_html=True)
-# ── MODE 3 — BEST VALUE FINDER ──────────────────────────────────────────
-elif mode == "Best Value Finder":
+    st.markdown('<div class="section-label">Search CPU by Name</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Find Best Value CPUs</div>', unsafe_allow_html=True)
+    query = st.text_input("Type a CPU name", placeholder="e.g. Ryzen 9 5950X")
+    st.markdown('</div>', unsafe_allow_html=True)
 
+    if query:
+        cpu_names = df['cpuName'].tolist()
+        matches = process.extract(query, cpu_names, scorer=fuzz.WRatio, limit=8)
+
+        if matches:
+            st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+            for match in matches:
+                name, score, idx = match
+                row = df[df['cpuName'] == name].iloc[0]
+                show_cpu_expander(row)
+        else:
+            st.markdown('<p style="color:#555;">No results found.</p>', unsafe_allow_html=True)
+
+# ── BEST VALUE FINDER ─────────────────────────────────────────────────
+elif mode == 'Best Value':
+
+    st.markdown('<div class="section-label">Find Best Value CPUs Within Your Budget</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
         category_filter = st.selectbox("Category", ["Any", "Desktop", "Laptop", "Server", "Other"])
@@ -325,120 +574,27 @@ elif mode == "Best Value Finder":
         min_budget = st.number_input("Min Budget (USD)", min_value=0, max_value=10000, value=100)
     with col3:
         max_budget = st.number_input("Max Budget (USD)", min_value=0, max_value=10000, value=500)
-
     st.markdown('</div>', unsafe_allow_html=True)
 
     if st.button("Find Best Value CPUs"):
-
         if min_budget >= max_budget:
             st.warning("Max budget must be greater than min budget.")
         else:
-            # Filter by price range
             filtered = df[
                 (df['price'] >= min_budget) &
                 (df['price'] <= max_budget) &
                 (df['price'] > 0)
             ].copy()
 
-            # Filter by category
             if category_filter != "Any":
                 filtered = filtered[filtered['category'] == category_filter]
 
             if filtered.empty:
-                st.markdown('<p style="color:#555;">No CPUs found in this range. Try adjusting your filters.</p>', unsafe_allow_html=True)
+                st.markdown('<p style="color:#555;">No CPUs found. Try adjusting your filters.</p>', unsafe_allow_html=True)
             else:
-                # Calculate value score and get top 5
                 filtered['value_score'] = (filtered['cpuMark'] / filtered['price']).round(2)
                 top5 = filtered.nlargest(5, 'value_score').reset_index(drop=True)
 
                 st.markdown('<div class="section-label">Top 5 Best Value CPUs</div>', unsafe_allow_html=True)
-
                 for _, row in top5.iterrows():
-                    cpu_score = int(row['cpuMark'])
-                    tier, tier_bg = get_tier(cpu_score)
-                    pct = get_progress_pct(cpu_score)
-
-                    with st.expander(f"{row['cpuName']}  —  {cpu_score:,} cpuMark  ·  ${row['price']:.0f}"):
-                        
-                        # Progress bar
-                        st.markdown(f"""
-                            <div class="bar-container">
-                                <div class="bar-fill" style="width:{pct}%;"></div>
-                            </div>
-                            <div class="bar-caption" style="margin-bottom:1rem;">
-                                Scores higher than ~{pct}% of CPUs in the dataset
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # Specs
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("cpuMark", f"{cpu_score:,}")
-                            st.metric("Cores", int(row['cores']))
-                        with col2:
-                            st.metric("Single Thread Mark", int(row['threadMark']))
-                            st.metric("TDP", f"{row['TDP']:.0f}W")
-                        with col3:
-                            st.metric("Price", f"${row['price']:.0f}")
-                            st.metric("Release Year", int(row['testDate']))
-
-                        # Tier and value score
-                        st.markdown(f"""
-                            <div style="margin-top:0.75rem;">
-                                <span class="tier-badge" style="background:{tier_bg}; color:#fff;">
-                                    {tier}
-                                </span>
-                                <span style="color:#555; font-size:0.85rem; margin-left:1rem;">
-                                    Value Score: {row['value_score']}
-                                </span>
-                            </div>
-                        """, unsafe_allow_html=True)
-# ── MODE 2 — SEARCH BY CPU NAME ─────────────────────────────────────────
-elif mode == "Search by CPU Name":
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Search CPU</div>', unsafe_allow_html=True)
-
-    query = st.text_input("Type a CPU name", placeholder="e.g. Ryzen 9 5950X")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if query:
-        cpu_names = df['cpuName'].tolist()
-
-        matches = process.extract(
-            query,
-            cpu_names,
-            scorer=fuzz.WRatio,
-            limit=8
-        )
-
-        if matches:
-            st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
-
-            for match in matches:
-                name, score, idx = match
-                row = df[df['cpuName'] == name].iloc[0]
-                cpu_score = int(row['cpuMark'])
-                tier, tier_bg = get_tier(cpu_score)
-                pct = get_progress_pct(cpu_score)
-
-                st.markdown(f"""
-                    <div class="result-row">
-                        <div class="result-cpu-name">{name}</div>
-                        <div class="result-meta">
-                            {row['category']} &nbsp;·&nbsp;
-                            {int(row['cores'])} Cores &nbsp;·&nbsp;
-                            ${row['price']:.0f} &nbsp;·&nbsp;
-                            <span style="background:{tier_bg}; color:#fff;
-                            padding: 2px 10px; border-radius:999px;
-                            font-size:0.75rem; font-weight:700;">{tier}</span>
-                        </div>
-                        <div class="bar-container" style="margin-top:0.75rem;">
-                            <div class="bar-fill" style="width:{pct}%;"></div>
-                        </div>
-                        <div class="result-score">{cpu_score:,}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown('<p style="color:#555;">No results found. Try a different search term.</p>', unsafe_allow_html=True)
+                    show_cpu_expander(row)
