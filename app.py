@@ -276,6 +276,39 @@ if mode == "Predict by Specs":
                 <div class="bar-caption">Scores higher than ~{pct}% of CPUs in the dataset</div>
             </div>
         """, unsafe_allow_html=True)
+        # Similar CPUs from the same category
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-label">Similar CPUs in the Same Category</div>', unsafe_allow_html=True)
+
+        same_cat = df[df['category'] == category].copy()
+        same_cat['diff'] = (same_cat['cpuMark'] - prediction).abs()
+        similar = same_cat.sort_values('diff').head(5)
+
+        for _, row in similar.iterrows():
+            cpu_score = int(row['cpuMark'])
+            tier, tier_bg = get_tier(cpu_score)
+            pct_similar = get_progress_pct(cpu_score)
+
+            st.markdown(f"""
+                <div class="result-row">
+                    <div class="result-cpu-name">{row['cpuName']}</div>
+                    <div class="result-meta">
+                        {int(row['cores'])} Cores &nbsp;·&nbsp;
+                        ${row['price']:.0f} &nbsp;·&nbsp;
+                        <span style="background:{tier_bg}; color:#fff;
+                        padding: 2px 10px; border-radius:999px;
+                        font-size:0.75rem; font-weight:700;">{tier}</span>
+                    </div>
+                    <div class="bar-container" style="margin-top:0.75rem;">
+                        <div class="bar-fill" style="width:{pct_similar}%;"></div>
+                    </div>
+                    <div class="result-score">{cpu_score:,}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        
 
 # ── MODE 2 — SEARCH BY CPU NAME ─────────────────────────────────────────
 elif mode == "Search by CPU Name":
